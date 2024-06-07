@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, jsonify
 import os
-from music import download
+from music import download_music
 
 app = Flask(__name__)
 
@@ -20,7 +20,7 @@ def request_music():
     query = request.form['query']
     filename = download_music(query, MUSIC_DIR)
     if filename:
-        return jsonify({'url': f'/static/music/{filename}'})
+        return jsonify({'url': f'/{filename}'})
     else:
         return jsonify({'error': 'Unable to download music'}), 500
 
