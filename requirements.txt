@@ -1,0 +1,7 @@
+youtube-search-python 
+yt-dlp
+flask
+requests
+gunicorn
+flask-socketio
+eventlet
