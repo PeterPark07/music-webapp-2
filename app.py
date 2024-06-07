@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, jsonify
 import os
-from download_music import download_music
+from music import download
 
 app = Flask(__name__)
 
