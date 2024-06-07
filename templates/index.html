@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music WebApp</title>
+</head>
+<body>
+    <h1>Music WebApp</h1>
+    <form id="musicForm">
+        <input type="text" id="query" name="query" placeholder="Enter song name" required>
+        <button type="submit">Request Music</button>
+    </form>
+    <audio id="audioPlayer" controls style="display: none;"></audio>
+
+    <script>
+        document.getElementById('musicForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const query = document.getElementById('query').value;
+
+            fetch('/request_music', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `query=${encodeURIComponent(query)}`,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.url) {
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    audioPlayer.style.display = 'block';
+                    audioPlayer.src = data.url;
+                    audioPlayer.play();
+                } else {
+                    alert('Unable to download music.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>
