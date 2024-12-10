@@ -57,11 +57,10 @@
                     audioPlayer.src = data.url;
                     audioPlayer.play();
                 } else {
-                    alert('Unable to download music.');
+                  .catch(error => {
+                    alert('Unable to download music. Error: ' + error.message);
+                  });
                 }
-            })
-            .catch(error => console.error('Error:', error));
-        }
 
         function scrambleSongs() {
             const songListItems = document.querySelectorAll('#playedSongsList .scrambled');
