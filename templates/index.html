@@ -56,19 +56,20 @@
                     audioPlayer.style.display = 'block';
                     audioPlayer.src = data.url;
                     audioPlayer.play();
-                } else {
-                    .catch(error => {
-                        alert('Unable to download music. Error: ' + error.message);
-                    });
                 }
+            })
+            .catch(error => {
+                alert('Unable to download music. Error: ' + error.message);
+            });
+        }
 
         function scrambleSongs() {
             const songListItems = document.querySelectorAll('#playedSongsList .scrambled');
             songListItems.forEach(item => {
                 const x = Math.floor(Math.random() * (window.innerWidth - item.offsetWidth));
-                const y = Math.floor(Math.random() * ((window.innerHeight - item.offsetHeight)-200));
+                const y = Math.floor(Math.random() * ((window.innerHeight - item.offsetHeight) - 200));
                 item.style.left = `${x}px`;
-                item.style.top = `${y+200}px`;
+                item.style.top = `${y + 200}px`;
             });
         }
 
