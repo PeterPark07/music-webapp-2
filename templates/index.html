@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music WebApp</title>
+    <style>
+        body {
+            position: relative;
+        }
+        .scrambled {
+            position: absolute;
+            transition: all 0.5s ease;
+        }
+    </style>
 </head>
 <body>
     <h1>Music WebApp</h1>
@@ -13,11 +22,26 @@
     </form>
     <audio id="audioPlayer" controls style="display: none;"></audio>
 
+    <h2>Previously Played Songs:</h2>
+    <ul id="playedSongsList">
+        {% for song in played_songs %}
+        <li class="scrambled" onclick="playPreviousSong('{{ song }}')">{{ song }}</li>
+        {% endfor %}
+    </ul>
+
     <script>
+        function playPreviousSong(song) {
+            document.getElementById('query').value = song;
+            fetchMusic(song);
+        }
+
         document.getElementById('musicForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const query = document.getElementById('query').value;
+            fetchMusic(query);
+        });
 
+        function fetchMusic(query) {
             fetch('/request_music', {
                 method: 'POST',
                 headers: {
@@ -37,7 +61,20 @@
                 }
             })
             .catch(error => console.error('Error:', error));
-        });
+        }
+
+        function scrambleSongs() {
+            const songListItems = document.querySelectorAll('#playedSongsList .scrambled');
+            songListItems.forEach(item => {
+                const x = Math.floor(Math.random() * (window.innerWidth - item.offsetWidth));
+                const y = Math.floor(Math.random() * ((window.innerHeight - item.offsetHeight)-200));
+                item.style.left = `${x}px`;
+                item.style.top = `${y+200}px`;
+            });
+        }
+
+        window.onload = scrambleSongs;
+        window.onresize = scrambleSongs;
     </script>
 </body>
 </html>
