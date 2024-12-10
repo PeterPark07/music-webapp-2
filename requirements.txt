@@ -3,5 +3,5 @@ yt-dlp
 flask
 requests
 gunicorn
-flask-socketio
-eventlet
+pymongo
+pytz
