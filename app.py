@@ -8,7 +8,7 @@ from database import log  # Assuming log is your MongoDB collection
 app = Flask(__name__)
 
 # Directory to save downloaded music files
-MUSIC_DIR = 'm'
+MUSIC_DIR = './m'
 
 # Ensure the music directory exists
 if not os.path.exists(MUSIC_DIR):
