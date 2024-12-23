@@ -1,21 +1,10 @@
 import os
 from flask import Flask, request, render_template, jsonify, send_from_directory
 from helper import search_youtube, get_current_time, save_cookie_to_file
-import traceback
 import yt_dlp
 import random
-import logging
 from database import log  # Assuming log is your MongoDB collection
 
-
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
-
-def error_log(where):
-    for i in range(10):
-        logging.error('hereee')
-    logging.error(where)
 
 app = Flask(__name__)
 
@@ -92,8 +81,6 @@ def download_music(query, download_dir):
 
     except Exception as e:
         print(f"Error downloading music: {e}")
-        error_log('downlload_music')
-        logging.error(traceback.format_exc())
         return None
 
 
@@ -106,7 +93,6 @@ def clear_music_directory(directory):
                 os.remove(file_path)
         except Exception as e:
             print(f"Error deleting file {file_path}: {e}")
-            error_log('clear music dir')
             
 
 
@@ -136,7 +122,6 @@ def request_music():
         else:
             return jsonify({'error': 'Unable to download music. Please try again.'}), 500
     except Exception as e:
-        error_log('request music')
         return jsonify({'error': 'An unexpected error occurred. Please try again later.'}), 500
 
 
