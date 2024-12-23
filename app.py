@@ -6,18 +6,26 @@ import random
 import logging
 from database import log  # Assuming log is your MongoDB collection
 
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 app = Flask(__name__)
+
+
 
 # Directory to save downloaded music files
 MUSIC_DIR = './m'
 
 # Ensure the music directory exists
 if not os.path.exists(MUSIC_DIR):
+    logging.error('made dir')
     os.makedirs(MUSIC_DIR)
 
 # List to store previously played songs (persistent across restarts)
 played_songs = [doc['query'] for doc in log.find({}, {'query': 1})]  # Initialize from MongoDB
 
+logging.debug('hi')
+logging.warning('hi')
+logging.error('hi')
 
 
 cookie_file = save_cookie_to_file()
