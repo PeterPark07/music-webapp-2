@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, render_template, jsonify, send_from_directory
 from helper import search_youtube, get_current_time, save_cookie_to_file
+import traceback
 import yt_dlp
 import random
 import logging
@@ -92,6 +93,7 @@ def download_music(query, download_dir):
     except Exception as e:
         print(f"Error downloading music: {e}")
         error_log('downlload_music')
+        logging.error(traceback.format_exc())
         return None
 
 
