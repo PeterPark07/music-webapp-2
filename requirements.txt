@@ -1,7 +1,8 @@
 youtube-search-python 
-yt-dlp==2024.11.04
+yt-dlp
 flask
 gunicorn
 pymongo
 pytz
 gradio
+httpx
