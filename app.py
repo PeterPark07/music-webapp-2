@@ -6,7 +6,15 @@ import random
 import logging
 from database import log  # Assuming log is your MongoDB collection
 
+
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+
+def error_log(where):
+    for i in range(10):
+        logging.error('hereee')
+    logging.error(where)
 
 app = Flask(__name__)
 
@@ -17,15 +25,10 @@ MUSIC_DIR = './m'
 
 # Ensure the music directory exists
 if not os.path.exists(MUSIC_DIR):
-    logging.error('made dir')
     os.makedirs(MUSIC_DIR)
 
 # List to store previously played songs (persistent across restarts)
 played_songs = [doc['query'] for doc in log.find({}, {'query': 1})]  # Initialize from MongoDB
-
-logging.debug('hi')
-logging.warning('hi')
-logging.error('hi')
 
 
 cookie_file = save_cookie_to_file()
@@ -88,6 +91,7 @@ def download_music(query, download_dir):
 
     except Exception as e:
         print(f"Error downloading music: {e}")
+        error_log('downlload_music')
         return None
 
 
@@ -100,6 +104,8 @@ def clear_music_directory(directory):
                 os.remove(file_path)
         except Exception as e:
             print(f"Error deleting file {file_path}: {e}")
+            error_log('clear music dir')
+            
 
 
 @app.route('/')
@@ -128,7 +134,7 @@ def request_music():
         else:
             return jsonify({'error': 'Unable to download music. Please try again.'}), 500
     except Exception as e:
-        logging.error(f'errorrr - {e}')
+        error_log('request music')
         return jsonify({'error': 'An unexpected error occurred. Please try again later.'}), 500
 
 
