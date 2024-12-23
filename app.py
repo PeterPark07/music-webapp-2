@@ -3,6 +3,7 @@ from flask import Flask, request, render_template, jsonify, send_from_directory
 from helper import search_youtube, get_current_time, save_cookie_to_file
 import yt_dlp
 import random
+import logging
 from database import log  # Assuming log is your MongoDB collection
 
 app = Flask(__name__)
@@ -119,6 +120,7 @@ def request_music():
         else:
             return jsonify({'error': 'Unable to download music. Please try again.'}), 500
     except Exception as e:
+        logging.error(f'errorrr - {e}')
         return jsonify({'error': 'An unexpected error occurred. Please try again later.'}), 500
 
 
