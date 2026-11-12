@@ -1,122 +1,134 @@
-"""
-Music WebApp - Production Application Server
-High-speed streaming audio player with zero-download streaming relay,
-rich YouTube Music search, and Render.com cloud deployment readiness.
-"""
-
 import os
-import requests
-from flask import Flask, request, render_template, jsonify, Response, stream_with_context
-from helper import search_music, get_audio_stream_info
-from database import log_song_play, get_history, toggle_favorite, get_favorites
+from flask import Flask, request, render_template, jsonify, send_from_directory
+from helper import search_youtube, get_current_time, save_cookie_to_file
+import yt_dlp
+import random
+from database import log  # Assuming log is your MongoDB collection
+
 
 app = Flask(__name__)
 
-# Configurable port for Render.com ($PORT) or local development
-PORT = int(os.environ.get("PORT", 5000))
 
-@app.route("/")
-def index():
-    """Renders the modern Spotify/Apple Music-grade web player."""
-    recent_songs = get_history(limit=12)
-    return render_template("index.html", recent_songs=recent_songs)
 
-@app.route("/api/search", methods=["GET"])
-def api_search():
-    """Search YouTube Music for tracks matching the query."""
-    query = request.args.get("q", "").strip()
-    if not query:
-        return jsonify([])
-    results = search_music(query, limit=12)
-    return jsonify(results)
+# Directory to save downloaded music files
+MUSIC_DIR = './m'
 
-@app.route("/api/history", methods=["GET"])
-def api_history():
-    """Fetch recently played songs from SQLite."""
-    return jsonify(get_history(limit=24))
+# Ensure the music directory exists
+if not os.path.exists(MUSIC_DIR):
+    os.makedirs(MUSIC_DIR)
 
-@app.route("/api/favorites", methods=["GET"])
-def api_favorites():
-    """Fetch user's favorite tracks."""
-    return jsonify(get_favorites(limit=50))
+# List to store previously played songs (persistent across restarts)
+played_songs = [doc['query'] for doc in log.find({}, {'query': 1})]  # Initialize from MongoDB
 
-@app.route("/api/favorite", methods=["POST"])
-def api_toggle_favorite():
-    """Toggle a song's favorite status."""
-    data = request.get_json() or {}
-    vid = data.get("video_id")
-    title = data.get("title")
-    if not vid or not title:
-        return jsonify({"error": "Missing video_id or title"}), 400
 
-    is_fav = toggle_favorite(
-        video_id=vid,
-        title=title,
-        artist=data.get("artist", ""),
-        thumbnail=data.get("thumbnail", ""),
-        duration=data.get("duration", "")
-    )
-    return jsonify({"favorited": is_fav})
+cookie_file = save_cookie_to_file()
 
-@app.route("/stream/<video_id>", methods=["GET"])
-def stream_audio(video_id):
-    """
-    Zero-Download Audio Streaming Relay Engine:
-    Resolves YouTube CDN audio stream using mobile client profiles (bypassing PoToken),
-    and relays the stream directly to the browser with HTTP Range header support.
-    
-    - Bypasses 403 Forbidden (request origin is matched to the server's signed IP).
-    - Bypasses CORS restrictions.
-    - Zero server disk usage.
-    - Instant playback in < 500ms.
-    """
-    stream_url, upstream_headers = get_audio_stream_info(video_id)
-    if not stream_url:
-        return Response("Unable to resolve audio stream for this track.", status=502, content_type="text/plain")
 
-    # Log play asynchronously in database
-    title = request.args.get("title", "")
-    artist = request.args.get("artist", "")
-    thumbnail = request.args.get("thumbnail", "")
-    duration = request.args.get("duration", "")
-    if title:
-        log_song_play(video_id, title, artist, thumbnail, duration)
 
-    # Forward client Range header to allow instant seeking/scrubbing
-    req_headers = dict(upstream_headers)
-    range_header = request.headers.get("Range")
-    if range_header:
-        req_headers["Range"] = range_header
 
+def download_music(query, download_dir):
     try:
-        # Stream chunks directly from the upstream CDN
-        upstream_resp = requests.get(stream_url, headers=req_headers, stream=True, timeout=12)
+        # Search for the video URL and title
+        search_results = search_youtube(query, max_results=1)
+        url = search_results[0][0]
+        title = search_results[1][0]
 
-        def generate_chunks():
-            for chunk in upstream_resp.iter_content(chunk_size=65536):
-                if chunk:
-                    yield chunk
+        # Define custom user-agent to bypass possible restrictions
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
 
-        # Build clean response headers
-        response_headers = {
-            "Content-Type": upstream_resp.headers.get("Content-Type", "audio/mp4"),
-            "Accept-Ranges": "bytes",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=3600"
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': os.path.join(download_dir, '%(title)s.%(ext)s'),
+            'noplaylist': True,
+            'cookiefile': cookie_file,  # Use the temporary cookie file
+            'nocheckcertificate': True,
+            'user-agent': user_agent,  # Custom user-agent
         }
-        if "Content-Range" in upstream_resp.headers:
-            response_headers["Content-Range"] = upstream_resp.headers["Content-Range"]
-        if "Content-Length" in upstream_resp.headers:
-            response_headers["Content-Length"] = upstream_resp.headers["Content-Length"]
 
-        return Response(
-            stream_with_context(generate_chunks()),
-            status=upstream_resp.status_code,
-            headers=response_headers
-        )
+        # Download the music using yt-dlp
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info_dict)
+            length = info_dict.get('duration', 0)  # Duration in seconds
+
+        # Log the song in MongoDB
+        user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        log_entry = log.find_one({'query': query})
+        if log_entry:
+            # Increment the play count if the entry exists
+            log.update_one(
+                {'_id': log_entry['_id']},
+                {'$inc': {'play_count': 1}, '$set': {'last_played': get_current_time()}}
+            )
+        else:
+            # Insert a new log entry
+            log.insert_one({
+                'query': query,
+                'title': title,
+                'length': length,
+                'user_ip': user_ip,
+                'play_count': 1,
+                'first_played': get_current_time(),
+                'last_played': get_current_time(),
+            })
+
+        # Add the song to the list of played songs
+        if query not in played_songs:
+            played_songs.append(query)
+
+        return filename
 
     except Exception as e:
-        return Response(f"Streaming error: {e}", status=500, content_type="text/plain")
+        print(f"Error downloading music: {e}")
+        return None
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT, debug=True)
+
+def clear_music_directory(directory):
+    # Clear all files in the specified directory
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting file {file_path}: {e}")
+            
+
+
+@app.route('/')
+def index():
+    global played_songs
+
+    # Shuffle the played_songs list for random order
+    random.shuffle(played_songs)
+    return render_template('index.html', played_songs=played_songs)
+
+
+@app.route('/request_music', methods=['POST'])
+def request_music():
+    query = request.form['query']
+
+    # Clear existing files in MUSIC_DIR before downloading new music
+    clear_music_directory(MUSIC_DIR)
+
+    try:
+        filename = download_music(query, MUSIC_DIR)
+        
+        if filename:
+            # Return the relative path to the file for direct access
+            relative_path = os.path.relpath(filename, start=os.getcwd())
+            return jsonify({'url': f'/{relative_path}'}), 200
+        else:
+            return jsonify({'error': 'Unable to download music. Please try again.'}), 500
+    except Exception as e:
+        return jsonify({'error': 'An unexpected error occurred. Please try again later.'}), 500
+
+
+@app.route('/m/<path:filename>', methods=['GET'])
+def serve_music(filename):
+    return send_from_directory(MUSIC_DIR, filename)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
