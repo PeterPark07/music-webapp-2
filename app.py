@@ -88,27 +88,9 @@ def stream_audio(video_id):
     if range_header:
         req_headers["Range"] = range_header
 
-    # Ensure standard desktop User-Agent is present
-    if "User-Agent" not in req_headers:
-        req_headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-
     try:
-        # Stream chunks directly from upstream with redirect following
-        upstream_resp = requests.get(
-            stream_url,
-            headers=req_headers,
-            stream=True,
-            timeout=15,
-            allow_redirects=True
-        )
-
-        # If CDN rejected the stream URL with 403 or 404, report error cleanly
-        if upstream_resp.status_code >= 400:
-            return Response(
-                f"Upstream stream error (Status {upstream_resp.status_code})",
-                status=502,
-                content_type="text/plain"
-            )
+        # Stream chunks directly from the upstream CDN
+        upstream_resp = requests.get(stream_url, headers=req_headers, stream=True, timeout=12)
 
         def generate_chunks():
             for chunk in upstream_resp.iter_content(chunk_size=65536):
